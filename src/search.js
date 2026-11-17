@@ -101,12 +101,42 @@ function ftsScores(db,userId,terms){
 }
 export function removeArrangementIndex(db,userId,arrangementId){try{db.prepare('DELETE FROM arrangement_fts WHERE arrangement_id=? AND user_id=?').run(arrangementId,userId)}catch{}try{db.prepare('DELETE FROM embeddings WHERE arrangement_id=? AND user_id=?').run(arrangementId,userId)}catch{}}
 function buildIndexRecord(db,userId,arrangementId){const arrangement=listArrangements(db,userId).find(a=>a.id===arrangementId);if(!arrangement)return null;const clients=listClients(db,userId),linked=listProjects(db,userId).filter(p=>p.arrangementId===arrangement.id);return {arrangement,linked:linked.map(p=>({id:p.id,name:p.name})),linkedFull:linked,content:arrangementDocument(arrangement,linked,clients)};}
-export async function indexArrangement(db,config,userId,arrangementId,{embedding=true}={}){const record=buildIndexRecord(db,userId,arrangementId);if(!record){removeArrangementIndex(db,userId,arrangementId);return {ok:false,reason:'missing'}}upsertFts(db,userId,arrangementId,record.content);if(!embedding||!config.ollamaUrl)return {ok:true,fts:true,embedding:false};const hash=createHash('sha256').update(record.content).digest('hex');const cached=db.prepare('SELECT 1 FROM embeddings WHERE arrangement_id=? AND user_id=? AND model=? AND content_hash=?').get(arrangementId,userId,config.embeddingModel,hash);if(cached)return {ok:true,fts:true,embedding:true,cached:true};const [vector]=await ollamaEmbed(config,[record.content]);if(!db.prepare('SELECT 1 FROM arrangements WHERE id=? AND user_id=?').get(arrangementId,userId))return {ok:false,reason:'deleted'};db.prepare('INSERT OR REPLACE INTO embeddings VALUES (?,?,?,?,?)').run(userId,arrangementId,config.embeddingModel,hash,JSON.stringify(vector));return {ok:true,fts:true,embedding:true,cached:false};}
+// Share in-flight embeddings between background indexing and interactive searches.
+const pendingEmbeddings=new WeakMap();
+async function documentVector(db,config,userId,arrangementId,content){
+  const hash=createHash('sha256').update(content).digest('hex');
+  const cached=db.prepare('SELECT vector FROM embeddings WHERE arrangement_id=? AND user_id=? AND model=? AND content_hash=?').get(arrangementId,userId,config.embeddingModel,hash);
+  if(cached)return JSON.parse(cached.vector);
+  let pending=pendingEmbeddings.get(db);if(!pending){pending=new Map();pendingEmbeddings.set(db,pending);}
+  const key=JSON.stringify([userId,arrangementId,config.embeddingModel,hash]);
+  if(pending.has(key))return pending.get(key);
+  const work=(async()=>{
+    const [vector]=await ollamaEmbed(config,[content]);
+    // A slower old request must not overwrite a newer document's vector.
+    const current=buildIndexRecord(db,userId,arrangementId);
+    if(current?.content===content)db.prepare('INSERT OR REPLACE INTO embeddings VALUES (?,?,?,?,?)').run(userId,arrangementId,config.embeddingModel,hash,JSON.stringify(vector));
+    return vector;
+  })();
+  pending.set(key,work);
+  try{return await work;}finally{pending.delete(key);}
+}
+export async function indexArrangement(db,config,userId,arrangementId,{embedding=true}={}){
+  const record=buildIndexRecord(db,userId,arrangementId);
+  if(!record){removeArrangementIndex(db,userId,arrangementId);return {ok:false,reason:'missing'};}
+  upsertFts(db,userId,arrangementId,record.content);
+  if(!embedding||!config.ollamaUrl)return {ok:true,fts:true,embedding:false};
+  await documentVector(db,config,userId,arrangementId,record.content);
+  return {ok:true,fts:true,embedding:true};
+}
 export async function primeLibraryIndex(db,config,userId){const ids=listArrangements(db,userId).map(a=>a.id);for(const arrangementId of ids){try{await indexArrangement(db,config,userId,arrangementId,{embedding:true})}catch(error){console.warn('[sonota-search] Pré-indexação parcial:',error.message);}}return {ok:true,count:ids.length};}
 async function semanticVectors(db,config,userId,candidates,queryText){
   if(!config.ollamaUrl||!candidates.length||!queryText.trim())return null;const vectors=new Map(),missing=[];
   for(const c of candidates){const hash=createHash('sha256').update(c.content).digest('hex');const cached=db.prepare('SELECT vector FROM embeddings WHERE arrangement_id=? AND user_id=? AND model=? AND content_hash=?').get(c.arrangement.id,userId,config.embeddingModel,hash);if(cached)vectors.set(c.arrangement.id,JSON.parse(cached.vector));else missing.push({...c,hash});}
-  for(let i=0;i<missing.length;i+=16){const batch=missing.slice(i,i+16),values=await ollamaEmbed(config,batch.map(c=>c.content));batch.forEach((c,j)=>{if(!db.prepare('SELECT 1 FROM arrangements WHERE id=? AND user_id=?').get(c.arrangement.id,userId))return;db.prepare('INSERT OR REPLACE INTO embeddings VALUES (?,?,?,?,?)').run(userId,c.arrangement.id,config.embeddingModel,c.hash,JSON.stringify(values[j]));vectors.set(c.arrangement.id,values[j]);});}
+  for(let i=0;i<missing.length;i+=16){
+    await Promise.all(missing.slice(i,i+16).map(async c=>{
+      vectors.set(c.arrangement.id,await documentVector(db,config,userId,c.arrangement.id,c.content));
+    }));
+  }
   const [queryVector]=await ollamaEmbed(config,[queryText]);return {vectors,queryVector};
 }
 function answerSearch(criteria,results,total){

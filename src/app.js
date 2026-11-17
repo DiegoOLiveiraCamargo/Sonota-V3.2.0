@@ -73,7 +73,7 @@ export function createApp(overrides={}) {
   let db;try{db=openDatabase(config);}catch(error){release();throw error;}
   const files=storage(config,db),worker=createWorker(db,config,files),app=express();
   app.disable('x-powered-by');
-  app.use(helmet({contentSecurityPolicy:{directives:{'default-src':["'self'"],'script-src':["'self'"],'script-src-attr':["'none'"],'style-src':["'self'","'unsafe-inline'"],'img-src':["'self'",'data:'],'media-src':["'self'",'blob:'],'connect-src':["'self'",'https://identitytoolkit.googleapis.com','https://securetoken.googleapis.com'],'upgrade-insecure-requests':config.secureCookie?[]:null}},strictTransportSecurity:config.secureCookie?undefined:false}));
+  app.use(helmet({crossOriginOpenerPolicy:{policy:'same-origin-allow-popups'},contentSecurityPolicy:{directives:{'default-src':["'self'"],'script-src':["'self'",'https://apis.google.com'],'script-src-attr':["'none'"],'style-src':["'self'","'unsafe-inline'"],'img-src':["'self'",'data:'],'media-src':["'self'",'blob:'],'connect-src':["'self'",'https://identitytoolkit.googleapis.com','https://securetoken.googleapis.com','https://bancodosonotaapp.firebaseapp.com'],'frame-src':['https://bancodosonotaapp.firebaseapp.com'],'upgrade-insecure-requests':config.secureCookie?[]:null}},strictTransportSecurity:config.secureCookie?undefined:false}));
   app.use('/api',originGuard(config),(req,res,next)=>{res.set('Cache-Control','no-store');next();});
   app.use('/api',rateLimit({windowMs:15*60000,limit:1800,standardHeaders:'draft-8',legacyHeaders:false,message:{error:{code:'RATE_LIMIT',message:'Muitas requisições. Aguarde alguns minutos.'}}}));
   app.use(express.json({limit:'150kb',strict:true}));

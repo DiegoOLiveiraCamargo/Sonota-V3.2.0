@@ -14,10 +14,12 @@ test('contrato de embeddings: índice, cache, mudança de conteúdo e fallback',
  service.listen(0,'127.0.0.1');await new Promise(resolve=>service.once('listening',resolve));
  t.after(()=>new Promise(resolve=>service.close(resolve)));
  const r=await fixture(t,{ollamaUrl:`http://127.0.0.1:${service.address().port}`,embeddingModel:'test-model'}),u=await account(r.base),{arr}=await seed(r.base,u);
- let result=(await call(r.base,u,'POST','/search',{query:'synth'})).data;assert.equal(result.mode,'hybrid');assert.equal(calls,2);
- await call(r.base,u,'POST','/search',{query:'tensão'});assert.equal(calls,3);
+ let result=(await call(r.base,u,'POST','/search',{query:'synth'})).data;assert.equal(result.mode,'hybrid');
+ // Upload and project creation both index content, so count cache reuse relative to that work.
+ const indexedCalls=calls;assert.ok(indexedCalls>=2);
+ await call(r.base,u,'POST','/search',{query:'tensão'});assert.equal(calls,indexedCalls+1);
  await call(r.base,u,'PATCH','/arrangements/'+arr.id,{version:1,notes:'Novo contexto para reindexar'});
- await call(r.base,u,'POST','/search',{query:'synth'});assert.equal(calls,5);
+ await call(r.base,u,'POST','/search',{query:'synth'});assert.equal(calls,indexedCalls+3);
  fail=true;result=(await call(r.base,u,'POST','/search',{query:'synth'})).data;
  assert.equal(result.mode,'metadata');assert.match(result.notice,/indisponível/);assert.equal(result.total,1);
 });

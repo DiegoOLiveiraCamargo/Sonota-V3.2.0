@@ -40,7 +40,11 @@ export function cloudAccounts(db, config, limiter, files) {
     const ref = firestore.collection('usuarios').doc(claims.uid);
     const user = await firestore.runTransaction(async tx => {
       const snap = await tx.get(ref);
-      if (snap.exists) return publicProfile(snap.data(), claims);
+      if (snap.exists) {
+        // Authentication owns the email; refresh Firestore after a verified change.
+        if (snap.data().email !== claims.email) tx.set(ref, { email: claims.email, updatedAt: new Date().toISOString() }, { merge: true });
+        return publicProfile(snap.data(), claims);
+      }
       assert(config.registration, 403, 'REGISTRATION_DISABLED', 'Cadastro desativado.');
       assert(data.name, 422, 'PROFILE_REQUIRED', 'Informe seu nome para concluir o cadastro.');
       const profile = publicProfile({ name: data.name, studio: data.studio, role: data.role }, claims);
@@ -74,7 +78,12 @@ export function cloudAccounts(db, config, limiter, files) {
     next();
   });
   router.post('/auth/logout', (req, res) => { res.clearCookie(cookieName, cookieOptions(config)); res.sendStatus(204); });
-  router.get(['/auth/me', '/profile/firebase'], (req, res) => res.json({ user: req.cloudProfile, csrf: req.session.csrf }));
+  router.get(['/auth/me', '/profile/firebase'], async (req, res) => {
+    const { firebaseAuth } = await services(config);
+    const account = await firebaseAuth.getUser(req.firebaseClaims.uid);
+    const providers = account.providerData.map(provider => provider.providerId);
+    res.json({ user: { ...req.cloudProfile, providers }, csrf: req.session.csrf });
+  });
   router.patch('/profile', async (req, res) => {
     const data = profileSchema.parse(req.body);
     assert(data.email.toLowerCase() === req.firebaseClaims.email.toLowerCase(), 409, 'FIREBASE_EMAIL_MANAGED', 'O e-mail é gerenciado pelo Firebase.');

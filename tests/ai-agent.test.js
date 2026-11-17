@@ -3,10 +3,14 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { fixture,account,call,seed,multipart } from './helpers.js';
 
-function ollamaMock(handler){
+function ollamaMock(handler,{customEmbeddings=false}={}){
   return createServer(async(req,res)=>{
-    const chunks=[];for await(const chunk of req)chunks.push(chunk);const body=chunks.length?JSON.parse(Buffer.concat(chunks)):{},output=await handler(req.url,body);
-    res.setHeader('Content-Type','application/json');res.end(JSON.stringify(output));
+    try {
+      const chunks=[];for await(const chunk of req)chunks.push(chunk);
+      const body=chunks.length?JSON.parse(Buffer.concat(chunks)):{};
+      const output=req.url==='/api/embed'&&!customEmbeddings?{embeddings:body.input.map(()=>[1,0,0])}:await handler(req.url,body);
+      res.setHeader('Content-Type','application/json');res.end(JSON.stringify(output));
+    } catch(error) { res.statusCode=500;res.end(error.message); }
   });
 }
 function listen(server){return new Promise(resolve=>server.listen(0,'127.0.0.1',()=>resolve(`http://127.0.0.1:${server.address().port}`)))}
@@ -48,10 +52,12 @@ test('Busca Inteligente usa planejador Qwen + embeddings quando IA local está a
     assert.equal(url,'/api/chat');chatCalls++;
     if(body.format)return {message:{role:'assistant',content:JSON.stringify({minBpm:120,maxBpm:130,key:'',genre:'',instruments:['synth'],tags:[],excluded:[],terms:['synth'],semanticQuery:'futurista tecnologia'})}};
     return {message:{role:'assistant',content:'Encontrei um arranjo compatível com BPM, synth e clima futurista.'}};
-  });
+  },{customEmbeddings:true});
   function normalizeVector(text){const q=String(text).toLowerCase();return q.includes('futur')||q.includes('synth')?[1,0,0]:[0,1,0]}
   const url=await listen(service);t.after(()=>new Promise(r=>service.close(r)));
   const runtime=await fixture(t,{aiEnabled:true,ollamaUrl:url,agentModel:'test-agent',aiFastModel:'test-fast',embeddingModel:'test-embedding'}),u=await account(runtime.base);await seed(runtime.base,u);
+  // The planner refines an existing conversation; the first query uses local parsing.
+  await call(runtime.base,u,'POST','/search',{query:'synth',limit:10});
   const response=await call(runtime.base,u,'POST','/search',{query:'agora quero algo mais futurista entre 120 e 130 BPM com synth',limit:10});
   assert.equal(response.status,200);assert.equal(response.data.criteria.planner,'ollama');assert.equal(response.data.mode,'hybrid');assert.equal(response.data.total,1);assert.match(response.data.answer,/Encontrei/);assert.equal(chatCalls,1);assert.ok(embedCalls>=2);
 });
@@ -61,7 +67,7 @@ test('modo FAST prepara CRUD simples em uma única inferência e sem segunda res
   let calls=0;const service=ollamaMock((url,body)=>{
     assert.equal(url,'/api/chat');calls++;
     assert.equal(body.model,'test-fast');assert.equal(body.think,false);assert.equal(body.keep_alive,'1h');
-    assert.equal(body.options.num_predict,192);
+    assert.equal(body.options.num_predict,128);
     return {message:{role:'assistant',content:JSON.stringify({mode:'fast',calls:[{tool:'propor_criar_cliente',args:{nome:'Alfredo Cherra Mal',telefone:'11999999999'}}]})}};
   });
   const url=await listen(service);t.after(()=>new Promise(r=>service.close(r)));

@@ -15,6 +15,7 @@ import { FinancePage } from './pages/finance/finance.page';
 import { ProfilePage } from './pages/profile/profile.page';
 import { ToastHostComponent } from './components/toast-host/toast-host.component';
 import { notifyError, notifySuccess } from './utils';
+import { readRoute, routeHash } from './navigation';
 
 @Component({
  selector:'app-root',standalone:true,
@@ -30,7 +31,11 @@ export class AppComponent implements OnInit, OnDestroy {
  private jobPollTimer:any=null;
  private refreshingJobs=false;
  constructor(public api:ApiService){}
- async ngOnInit(){await this.reload()}
+ async ngOnInit(){this.readLocation();await this.reload()}
+ @HostListener('window:hashchange') readLocation(){
+  const route=readRoute(window.location.hash);this.page=route.page;this.projectId=route.projectId;
+  if(window.innerWidth<=820)this.menuOpen=false;
+ }
  ngOnDestroy(){if(this.jobPollTimer)clearInterval(this.jobPollTimer)}
  @HostListener('window:resize') onResize(){if(window.innerWidth<=820&&this.menuOpen&&document.activeElement?.tagName!=='BUTTON')this.menuOpen=false}
  async reload(){
@@ -80,8 +85,8 @@ export class AppComponent implements OnInit, OnDestroy {
    this.syncJobPolling(boot);
   }catch{}finally{this.refreshingJobs=false;}
  }
- async logout(){try{await this.api.logout();this.auth='guest';this.data=null;this.projectId=null;this.syncJobPolling({transcriptions:[]})}catch(error:any){notifyError('Não foi possível sair',error.message)}}
- navigate(p:string){this.projectId=null;this.page=p;if(window.innerWidth<=820)this.menuOpen=false}
- openProject(id:string){this.projectId=id;this.page='projetos';if(window.innerWidth<=820)this.menuOpen=false}
+ async logout(){try{await this.api.logout();this.auth='guest';this.data=null;this.projectId=null;this.page='home';this.fatal=null;this.jobStates.clear();this.jobStatesReady=false;this.notifiedJobStates.clear();history.replaceState(null,'',routeHash('home'));this.syncJobPolling({transcriptions:[]})}catch(error:any){notifyError('Não foi possível sair',error.message)}}
+ navigate(p:string){window.location.hash=routeHash(p);this.readLocation()}
+ openProject(id:string){window.location.hash=routeHash('projetos',id);this.readLocation()}
  labelForPage(){return this.projectId?'Projeto':(this.nav.find(x=>x[0]===this.page)?.[1]||'Sonota')}
 }

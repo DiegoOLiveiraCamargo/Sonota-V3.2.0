@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
 import { formatError } from '../../utils';
+import { socialProviders, SocialProvider } from '../../../site/firebase-auth';
 
 @Component({
   selector: 'app-login-page',
@@ -14,12 +15,20 @@ export class LoginPage {
   @Output() authenticated = new EventEmitter<void>();
   mode: 'login'|'register' = 'login';
   busy = false;
+  readonly providers = socialProviders;
   resetNotice = '';
   error: any = null;
   form = {name:'', email:'', password:'', studio:'M&G Criação', role:'Produtor Musical'};
   constructor(private api: ApiService) {}
   errorLines() { return formatError(this.error).split('\n').filter(Boolean); }
   switchMode() { this.mode = this.mode === 'login' ? 'register' : 'login'; this.error = null; }
+  async social(provider: SocialProvider) {
+    if (this.busy) return;
+    this.busy = true; this.error = null; this.resetNotice = '';
+    try { await this.api.loginSocial(provider); this.authenticated.emit(); }
+    catch (error) { this.error = error; }
+    finally { this.busy = false; }
+  }
   async resetPassword() {
     if (this.busy) return;
     this.busy = true; this.error = null; this.resetNotice = '';

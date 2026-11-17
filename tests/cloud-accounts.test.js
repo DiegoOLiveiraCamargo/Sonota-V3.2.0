@@ -8,7 +8,7 @@ function cloud() {
   const check = async uid => { if (revoked.has(uid)) throw Object.assign(new Error('revoked'), {code:'auth/id-token-revoked'}); return claims(uid); };
   const ref = uid => ({ uid, get: async () => ({ exists: docs.has(uid), data: () => docs.get(uid) }) });
   return { docs, revoked, services: {
-    firebaseAuth: { verifyIdToken: check, verifySessionCookie: check, createSessionCookie: async token => token },
+    firebaseAuth: { verifyIdToken: check, verifySessionCookie: check, createSessionCookie: async token => token, getUser: async () => ({providerData:[{providerId:'password'}]}) },
     firestore: { collection: () => ({ doc: ref }), runTransaction: async fn => fn({ get: r => r.get(), set: (r, data, options) => docs.set(r.uid, options?.merge ? {...docs.get(r.uid),...data} : data) }) },
   } };
 }
@@ -62,4 +62,22 @@ test('Perfil Firebase: foto conserva referência no Firestore e arquivo durante 
   assert.equal((await call(r.base,a,'DELETE','/profile/avatar')).status,200);
   assert.equal(stub.docs.get('uid-avatar').avatarFileId,'');
   assert.equal(r.db.prepare('SELECT COUNT(*) n FROM users').get().n,0);
+});
+
+test('Perfil: provedores vêm do Authentication e e-mail confirmado atualiza Firestore',async t=>{
+  const stub=cloud(),r=await fixture(t,{firebaseOnly:true,cloudServices:stub.services});
+  const a=await login(r.base,'uid-email');
+  stub.docs.get('uid-email').email='antigo@example.test';
+  await login(r.base,'uid-email');
+  assert.equal(stub.docs.get('uid-email').email,'uid-email@example.test');
+  stub.services.firebaseAuth.getUser=async()=>({providerData:[{providerId:'google.com'}]});
+  const me=await call(r.base,a,'GET','/auth/me');
+  assert.deepEqual(me.data.user.providers,['google.com']);
+  const p=me.data.user;
+  const changed=await call(r.base,a,'PATCH','/profile',{name:p.name,email:'nao-confirmado@example.test',studio:p.studio,role:p.role,phone:p.phone,notificationPreferences:p.notificationPreferences,version:p.version});
+  assert.equal(changed.status,409);
+  assert.equal(stub.docs.get('uid-email').email,p.email);
+  const page=await fetch(r.base+'/app/');
+  assert.equal(page.headers.get('cross-origin-opener-policy'),'same-origin-allow-popups');
+  assert.match(page.headers.get('content-security-policy'),/frame-src https:\/\/bancodosonotaapp\.firebaseapp\.com/);
 });

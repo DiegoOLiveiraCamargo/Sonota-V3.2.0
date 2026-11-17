@@ -1,4 +1,4 @@
-import { siteAuth } from '../../site/firebase-auth';
+import { siteAuth, SocialProvider } from '../../site/firebase-auth';
 import { Injectable } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
@@ -43,6 +43,11 @@ export class ApiService {
   }
 
   me() { return this.request('/auth/me'); }
+  loginSocial(provider: SocialProvider) { return siteAuth.socialLogin(provider, (path, options) => this.request(path, options)); }
+  linkSocial(provider: SocialProvider, uid: string) { return siteAuth.linkSocial(provider, (path, options) => this.request(path, options), uid); }
+  loginGoogle() { return siteAuth.google((path, options) => this.request(path, options)); }
+  linkGoogle(uid: string) { return siteAuth.linkGoogle((path, options) => this.request(path, options), uid); }
+  changeEmail(email: string, password: string) { return siteAuth.changeEmail(email, password, (path, options) => this.request(path, options)); }
   login(data: any) { return siteAuth.login(data, (path, options) => this.request(path, options)); }
   register(data: any) { return siteAuth.register(data, (path, options) => this.request(path, options)); }
   async logout() { await siteAuth.logout((path, options) => this.request(path, options)); this.csrf = ''; }
