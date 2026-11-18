@@ -8,8 +8,6 @@ Aplicação de apoio à rotina de um estúdio musical. O Sonota reúne clientes,
 
 ![Demonstração do Projeto](./public/assets/demo.gif)
 
-Não há screenshots ou vídeo de demonstração da interface atual neste repositório. Os arquivos de logo não substituem capturas de tela do aplicativo. Uma demonstração visual pode ser adicionada aqui após capturar telas reais, sem dados pessoais ou de clientes.
-
 ## Funcionalidades
 
 - **Acesso e perfil:** autenticação com Firebase, perfil de usuário e opções de login por provedores sociais, conforme a configuração habilitada no Firebase.
