@@ -10,8 +10,21 @@ node_modules/
 data/
 backups/
 
+
 # Variáveis de ambiente
 .env
+.env.*
+!.env.example
+
+# Credenciais privadas
+.secrets/
+**/service-account*.json
+**/firebase-admin*.json
+
+# Dados e backups locais
+data/
+backups/
+
 
 # Python
 .venv*/
