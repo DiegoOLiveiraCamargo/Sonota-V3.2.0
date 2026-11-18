@@ -53,7 +53,8 @@ Embora o acesso e os perfis sejam gerenciados pelo Firebase, os dados de produç
 ## Instalação e execução
 
 ## Acesse o Site
-- sonota-app.vercel.app
+- Entre no link [Link para baixar o Sonota](https://sonota-app.vercel.app)
+- E faça o download do software.
 
 ## OU
 
