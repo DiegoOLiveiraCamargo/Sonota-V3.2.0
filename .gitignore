@@ -21,9 +21,6 @@ backups/
 **/service-account*.json
 **/firebase-admin*.json
 
-# Dados e backups locais
-data/
-backups/
 
 
 # Python
