@@ -52,6 +52,11 @@ Embora o acesso e os perfis sejam gerenciados pelo Firebase, os dados de produç
 
 ## Instalação e execução
 
+## Acesse o Site
+- sonota-app.vercel.app
+
+## OU
+
 ### Pré-requisitos
 
 - Node.js **24.x** e npm.
