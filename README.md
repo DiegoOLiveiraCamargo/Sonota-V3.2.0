@@ -112,9 +112,32 @@ Pela arquitetura e documentação do repositório, os principais pontos técnico
 
 Esses pontos descrevem decisões e dependências observáveis no projeto; não representam um relato pessoal de desafios resolvidos ou de resultados de produção.
 
-## Créditos e colaboração
 
-Os arquivos consultados não identificam de forma suficiente se o desenvolvimento foi individual ou em equipe, nem registram contribuições individuais. A autoria, os participantes e os respectivos créditos precisam ser confirmados antes de atribuir responsabilidades específicas.
+## 🤝 Créditos e Colaboração
+
+O **Sonota** foi desenvolvido de forma colaborativa pela equipe **Harmônico**, com o objetivo de criar uma plataforma inteligente para auxiliar profissionais da música na gestão de suas atividades.
+
+### 👨‍💻 Minha Contribuição — Diego Oliveira Camargo
+
+Durante o desenvolvimento do Sonota, fui responsável principalmente pela **estruturação do banco de dados e pela implementação do sistema de autenticação**, além de colaborar na integração dessas funcionalidades com o back-end da aplicação.
+
+**Principais responsabilidades:**
+
+- 🗄️ **Banco de Dados:** estruturação e implementação da persistência de dados utilizando **SQLite**, contribuindo para o armazenamento e gerenciamento das informações do sistema.
+- 🔐 **Autenticação:** implementação da autenticação de usuários com **Firebase Authentication**, contribuindo para o controle de acesso à plataforma.
+- ⚙️ **Integração Back-end:** colaboração na integração do banco de dados e da autenticação com os demais componentes da aplicação.
+
+### 👥 Trabalho em Equipe
+
+O desenvolvimento do Sonota contou com a colaboração dos integrantes da **Harmônico**, envolvendo planejamento, desenvolvimento de interfaces, implementação de funcionalidades e integração de diferentes tecnologias.
+
+Cada integrante contribuiu para a evolução do projeto, permitindo a construção de uma solução integrada para a gestão musical.
+
+---
+
+**Desenvolvido pela equipe Harmônico.**
+
+**Contribuição de Diego Oliveira Camargo:** Banco de Dados, Autenticação e Integração Back-end.
 
 ## Status
 
