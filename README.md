@@ -76,7 +76,7 @@ npm.cmd run setup
 npm run setup
 ```
 
-Configure no `.env` o caminho local para a credencial privada do Firebase (`GOOGLE_APPLICATION_CREDENTIALS`) e mantenha o arquivo de serviço fora da pasta do repositório. **Atenção:** o `.gitignore` atual não exclui `.env` nem credenciais; configure uma exclusão local e confira o que será incluído no commit. Nunca publique chaves ou arquivos de serviço.
+O arquivo `.env` está incluído no `.gitignore` e não deve ser enviado ao repositório. Use o `.env.example` para demonstrar as variáveis necessárias sem incluir credenciais reais. As credenciais administrativas do Firebase devem permanecer privadas.
 
 ### Iniciar o aplicativo
 
